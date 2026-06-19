@@ -22,14 +22,14 @@ export async function POST(req: Request) {
     bets.forEach((bet: any, index: number) => {
       content.push({ type: 'text', text: `Imágenes correspondientes a la Apuesta ${index + 1}:` });
       
-      // Procesamos el base64 limpio sin el prefijo "data:image/jpeg;base64,"
+      // Convertir explícitamente el base64 a Uint8Array (Buffer)
       if (bet.abierta) {
         const base64Data = bet.abierta.includes(',') ? bet.abierta.split(',')[1] : bet.abierta;
-        content.push({ type: 'image', image: base64Data, mimeType: 'image/jpeg' });
+        content.push({ type: 'image', image: Buffer.from(base64Data, 'base64') });
       }
       if (bet.anulada) {
         const base64Data = bet.anulada.includes(',') ? bet.anulada.split(',')[1] : bet.anulada;
-        content.push({ type: 'image', image: base64Data, mimeType: 'image/jpeg' });
+        content.push({ type: 'image', image: Buffer.from(base64Data, 'base64') });
       }
     });
 
@@ -40,7 +40,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ result: text });
   } catch (error: any) {
-    console.error("Error completo de IA:", error);
-    return NextResponse.json({ error: error.message || 'Error procesando las imágenes con la IA' }, { status: 500 });
+    console.error("Error devuelto por Gemini/SDK:", error);
+    // Extraemos el mensaje de error real si viene anidado
+    const errorMessage = error.message || error.cause?.message || 'Error procesando las imágenes con la IA';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
