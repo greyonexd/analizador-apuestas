@@ -5,7 +5,6 @@ import { google } from '@ai-sdk/google';
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-// ... el resto de tu código
   try {
     const { bets } = await req.json();
 
@@ -23,25 +22,25 @@ export async function POST(req: Request) {
     bets.forEach((bet: any, index: number) => {
       content.push({ type: 'text', text: `Imágenes correspondientes a la Apuesta ${index + 1}:` });
       
-      // El SDK de Vercel requiere convertir el base64 a Buffer o Uint8Array para imágenes
+      // Procesamos el base64 limpio sin el prefijo "data:image/jpeg;base64,"
       if (bet.abierta) {
-        const base64Data = bet.abierta.split(',')[1];
-        content.push({ type: 'image', image: base64Data });
+        const base64Data = bet.abierta.includes(',') ? bet.abierta.split(',')[1] : bet.abierta;
+        content.push({ type: 'image', image: base64Data, mimeType: 'image/jpeg' });
       }
       if (bet.anulada) {
-        const base64Data = bet.anulada.split(',')[1];
-        content.push({ type: 'image', image: base64Data });
+        const base64Data = bet.anulada.includes(',') ? bet.anulada.split(',')[1] : bet.anulada;
+        content.push({ type: 'image', image: base64Data, mimeType: 'image/jpeg' });
       }
     });
 
     const { text } = await generateText({
-      model: google('models/gemini-1.5-flash-latest'), // Modelo muy rápido y gratuito en AI Studio
+      model: google('models/gemini-1.5-flash-latest'),
       messages: [{ role: 'user', content }],
     });
 
     return NextResponse.json({ result: text });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Error procesando las imágenes con la IA' }, { status: 500 });
+  } catch (error: any) {
+    console.error("Error completo de IA:", error);
+    return NextResponse.json({ error: error.message || 'Error procesando las imágenes con la IA' }, { status: 500 });
   }
 }
