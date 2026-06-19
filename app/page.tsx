@@ -8,8 +8,14 @@ export default function Home() {
   const [bets, setBets] = useState<Bet[]>([{ id: 1, abierta: null, anulada: null }]);
   const [result, setResult] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false); // Estado para el botón de copiar
 
   const addBet = () => setBets([...bets, { id: Date.now(), abierta: null, anulada: null }]);
+
+  // Función para eliminar una apuesta específica
+  const removeBet = (idToRemove: number) => {
+    setBets(bets.filter(bet => bet.id !== idToRemove));
+  };
 
   const handleFileChange = (index: number, field: 'abierta' | 'anulada', file: File | null) => {
     const newBets = [...bets];
@@ -17,7 +23,8 @@ export default function Home() {
     setBets(newBets);
   };
 
-const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  // Función para comprimir imágenes y evitar bloqueos del servidor
+  const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
@@ -26,7 +33,6 @@ const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) 
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Reducir tamaño máximo a 1200px manteniendo proporción
         const MAX_WIDTH = 1200;
         const MAX_HEIGHT = 1200;
         let width = img.width;
@@ -48,7 +54,6 @@ const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) 
         canvas.height = height;
         ctx?.drawImage(img, 0, 0, width, height);
         
-        // Comprimir a JPEG calidad 70% (reduce el peso un 90%)
         resolve(canvas.toDataURL('image/jpeg', 0.7));
       };
       img.src = event.target?.result as string;
@@ -59,6 +64,7 @@ const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) 
   const analyze = async () => {
     setLoading(true);
     setResult('');
+    setCopied(false);
     try {
       const payload = [];
       for (const bet of bets) {
@@ -77,10 +83,9 @@ const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bets: payload }),
-        cache: 'no-store' // Evita que Next.js recuerde un error antiguo
+        cache: 'no-store'
       });
 
-      // Intentamos procesar la respuesta, incluso si falló
       let data;
       try {
         data = await response.json();
@@ -101,18 +106,42 @@ const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) 
     setLoading(false);
   };
 
+  // Función para copiar el resultado al portapapeles
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(result);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Vuelve a poner "Copiar" tras 2 segundos
+    } catch (err) {
+      console.error('Error al copiar: ', err);
+    }
+  };
+
   return (
     <main className="p-8 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Analizador de Apuestas</h1>
       
       {bets.map((bet, index) => (
-        <div key={bet.id} className="border p-4 mb-4 rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+        // Añadimos 'relative' para poder posicionar la X arriba a la derecha
+        <div key={bet.id} className="relative border p-4 mb-4 rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+          
+          {/* Botón de eliminar apuesta (X) */}
+          {bets.length > 1 && (
+            <button 
+              onClick={() => removeBet(bet.id)}
+              className="absolute top-3 right-3 text-red-500 hover:text-red-700 font-bold text-lg px-2"
+              title="Eliminar apuesta"
+            >
+              ✕
+            </button>
+          )}
+
           <h2 className="font-semibold mb-2">Apuesta {index + 1}</h2>
-          <div className="mb-2">
+          <div className="mb-2 w-11/12">
             <label className="block text-sm">Apuesta Abierta (Opcional):</label>
             <input type="file" accept="image/*" onChange={(e) => handleFileChange(index, 'abierta', e.target.files?.[0] || null)} className="mt-1 block w-full" />
           </div>
-          <div>
+          <div className="w-11/12">
             <label className="block text-sm font-medium text-red-500">Apuesta Anulada / Recalculada (Obligatorio):</label>
             <input type="file" accept="image/*" onChange={(e) => handleFileChange(index, 'anulada', e.target.files?.[0] || null)} className="mt-1 block w-full" />
           </div>
@@ -126,9 +155,16 @@ const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) 
         </button>
       </div>
 
+      {/* Recuadro de resultado con botón de copiar */}
       {result && (
-        <div className="p-4 bg-gray-100 dark:bg-gray-900 rounded-lg whitespace-pre-wrap font-mono text-sm border dark:border-gray-700">
-          {result}
+        <div className="relative p-4 bg-gray-100 dark:bg-gray-900 rounded-lg whitespace-pre-wrap font-mono text-sm border dark:border-gray-700">
+          <button 
+            onClick={copyToClipboard}
+            className="absolute top-2 right-2 bg-gray-300 dark:bg-gray-700 px-3 py-1 rounded text-xs font-semibold hover:bg-gray-400 dark:hover:bg-gray-600 transition"
+          >
+            {copied ? '¡Copiado!' : 'Copiar'}
+          </button>
+          <div className="mt-4">{result}</div>
         </div>
       )}
     </main>
