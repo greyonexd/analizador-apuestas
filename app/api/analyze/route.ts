@@ -3,14 +3,9 @@ import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 
 export const maxDuration = 60;
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
+
 export async function POST(req: Request) {
+// ... el resto de tu código
   try {
     const { bets } = await req.json();
 
