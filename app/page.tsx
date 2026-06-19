@@ -45,13 +45,26 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bets: payload }),
+        cache: 'no-store' // Evita que Next.js recuerde un error antiguo
       });
 
-      const data = await response.json();
-      setResult(data.result);
-    } catch (error) {
+      // Intentamos procesar la respuesta, incluso si falló
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        throw new Error(`El servidor devolvió un error (Código: ${response.status}). Posiblemente las imágenes son demasiado pesadas.`);
+      }
+
+      if (!response.ok || data.error) {
+        setResult(`❌ Error del servidor: ${data.error || 'Desconocido'}`);
+      } else {
+        setResult(data.result);
+      }
+      
+    } catch (error: any) {
       console.error(error);
-      setResult('Ocurrió un error de red al contactar con el servidor.');
+      setResult(`❌ ${error.message || 'Ocurrió un error de red al contactar con el servidor.'}`);
     }
     setLoading(false);
   };
